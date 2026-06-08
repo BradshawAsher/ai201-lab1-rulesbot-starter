@@ -66,7 +66,33 @@ def retrieve(query, n_results=N_RESULTS):
     have one query, so you'll want index [0] to get the actual results.
     """
     if _collection.count() == 0:
+        # If no chunks are stored yet, there is nothing to retrieve.
         return []
 
-    # Your implementation here.
-    return []
+    # Run a semantic similarity query for the single user query.
+    # `query_texts` is a list because ChromaDB supports batch querying.
+    # We only pass one query, so the returned results are nested inside [0].
+    results = _collection.query(
+        query_texts=[query],
+        n_results=n_results,
+        include=["documents", "metadatas", "distances"],
+    )
+
+    # Extract the first and only query's result lists.
+    documents = results["documents"][0]
+    metadatas = results["metadatas"][0]
+    distances = results["distances"][0]
+
+    # Temporary debug output: print each retrieved chunk summary to verify retrieval.
+    for document, metadata, distance in zip(documents, metadatas, distances):
+        print(f"[{metadata.get('game')}] (dist: {distance:.3f}) {document[:80]}...")
+
+    retrieved_chunks = []
+    for document, metadata, distance in zip(documents, metadatas, distances):
+        retrieved_chunks.append({
+            "text": document,
+            "game": metadata.get("game"),
+            "distance": distance,
+        })
+
+    return retrieved_chunks

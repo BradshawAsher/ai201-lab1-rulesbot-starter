@@ -1,7 +1,17 @@
+import asyncio
 import gradio as gr
 from ingest import load_documents, chunk_document
 from retriever import embed_and_store, retrieve, get_collection
 from generator import generate_response
+
+# Python 3.14 changed asyncio.get_event_loop() behavior so it raises
+# RuntimeError when no event loop is set on the thread yet.
+# Gradio 5.20.1 may initialize async locks before a loop exists,
+# which can leave `pending_message_lock` as None and crash the app.
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
 
 
 # ---------------------------------------------------------------------------
