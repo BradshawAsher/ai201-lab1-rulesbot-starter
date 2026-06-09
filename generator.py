@@ -2,6 +2,13 @@ from groq import Groq
 from config import GROQ_API_KEY, LLM_MODEL
 
 _client = Groq(api_key=GROQ_API_KEY)
+_RELEVANCE_THRESHOLD = 0.5
+
+
+_FALLBACK_RESPONSE = (
+    "I couldn't find anything relevant in the loaded rule books. "
+    "Try rephrasing your question — or check that your ingestion pipeline is working."
+)
 
 
 def generate_response(query, retrieved_chunks):
@@ -30,10 +37,51 @@ def generate_response(query, retrieved_chunks):
     Return the response as a plain string.
     """
     if not retrieved_chunks:
-        return (
-            "I couldn't find anything relevant in the loaded rule books. "
-            "Try rephrasing your question — or check that your ingestion pipeline is working."
+        return _FALLBACK_RESPONSE
+
+    relevant_chunks = [
+        chunk for chunk in retrieved_chunks
+        if chunk.get("distance", 1.0) <= _RELEVANCE_THRESHOLD
+    ]
+
+    if not relevant_chunks:
+        return _FALLBACK_RESPONSE
+
+    context_blocks = []
+    for chunk in relevant_chunks:
+        context_blocks.append(
+            "Game: {game}\nDistance: {distance:.3f}\nText: {text}".format(
+                game=chunk.get("game", "Unknown"),
+                distance=chunk.get("distance", 1.0),
+                text=chunk.get("text", ""),
+            )
         )
 
-    # Your implementation here.
-    return "⚙️ Response generation not yet implemented. Complete Milestone 3 to activate answers."
+    system_message = (
+        "You are RulesBot. Answer only using the retrieved rule excerpts provided in the context. "
+        "Do not use outside knowledge, do not guess, and do not fill in missing details from memory. "
+        "If the context does not contain the answer, say that the answer is not found in the loaded rules. "
+        "Always name the game or games the answer comes from. If the answer uses more than one excerpt, "
+        "mention every relevant game. If the answer is not found, say that clearly instead of inventing a citation."
+    )
+
+    user_message = (
+        f"Question: {query}\n\n"
+        "Retrieved rule excerpts:\n"
+        f"{'\n---\n'.join(context_blocks)}"
+    )
+
+    response = _client.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message},
+        ],
+    )
+
+    content = response.choices[0].message.content
+    if content is None:
+        return _FALLBACK_RESPONSE
+
+    content = content.strip()
+    return content if content else _FALLBACK_RESPONSE

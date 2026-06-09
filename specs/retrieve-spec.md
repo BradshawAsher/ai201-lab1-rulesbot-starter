@@ -123,14 +123,14 @@ Because this project uses retrieved chunks as grounding context, it is safer to 
 **Test query and top result returned:**
 
 ```
-Query: [your test query]
-Top result game: [game name]
-Distance score: [score]
-Does it make sense? [yes / no / explain]
+Query: How does the spymaster give clue in codenames?
+Top result game: [Codenames]
+Distance score: 0.289
+Does it make sense? yes
 ```
 
 **One thing about the query results that surprised you:**
 
 ```
-[your answer here]
+it was good it's just that chunks aren't full sentences
 ```
